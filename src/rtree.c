@@ -6,11 +6,74 @@
 #include <stdlib.h>
 
 #define NODE_GET_ITH_CHILD_MBR(node, i)                                        \
-  node->kind == LEAF ? node->data[i].r : node->children[i]->mbr
+  (node->kind == LEAF ? node->data[i].r : node->children[i]->mbr)
 #define NODE_GET_ITH_CHILD_MBR_PTR(node, i)                                    \
-  node->kind == LEAF ? &node->data[i].r : &node->children[i]->mbr
+  (node->kind == LEAF ? &node->data[i].r : &node->children[i]->mbr)
 
-SPLIT_MASK best_split_exponential(Node* node) {
+void split_pick_seeds(Node* node, int* seed1, int* seed2) {
+  NUM_TYPE worst_d = -1;
+  for (int i = 0; i < M + 1; i++) {
+    Rect ri = NODE_GET_ITH_CHILD_MBR(node, i);
+    for (int j = i + 1; j < M + 1; j++) {
+      Rect rj = NODE_GET_ITH_CHILD_MBR(node, j);
+      NUM_TYPE d = rect_dead_space(&ri, &rj);
+      if (d > worst_d) {
+        worst_d = d;
+        *seed1 = i;
+        *seed2 = j;
+      }
+    }
+  }
+}
+
+int compare_item_on_axis(void* _k, const void* _a, const void* _b) {
+  int k = *(int*)_k;
+  Item a = *(Item*)_a;
+  Item b = *(Item*)_b;
+  return a.r.min[k] - b.r.min[k];
+}
+
+int compare_nodes_on_axis(void* _k, const void* _a, const void* _b) {
+  int k = *(int*)_k;
+  Node* a = *(Node**)_a;
+  Node* b = *(Node**)_b;
+
+  return a->mbr.min[k] - b->mbr.min[k];
+}
+
+SPLIT_MASK split_greene(Node* node) {
+  int seed1, seed2;
+  split_pick_seeds(node, &seed1, &seed2);
+
+  int greatest_separation_axis = 0;
+  NUM_TYPE greatest_separation = -1.0f;
+
+  for (int k = 0; k < N; k++) {
+    NUM_TYPE separation = NODE_GET_ITH_CHILD_MBR(node, seed1).max[k] -
+                          NODE_GET_ITH_CHILD_MBR(node, seed1).min[k];
+    NUM_TYPE relative_separation =
+        fabs(separation / (node->mbr.max[k] - node->mbr.min[k]));
+
+    if (relative_separation > greatest_separation) {
+      greatest_separation = relative_separation;
+      greatest_separation_axis = k;
+    }
+  }
+
+  if (node->kind == BRANCH) {
+    qsort_r(&node->children[0], M + 1, sizeof(Node*), &greatest_separation_axis,
+            compare_nodes_on_axis);
+  } else {
+    qsort_r(&node->data[0], M + 1, sizeof(Item), &greatest_separation_axis,
+            compare_item_on_axis);
+  }
+
+  uint64_t full_mask = (1ULL << (M + 1)) - 1;
+  uint64_t clear_mask = (1ULL << ((M + 1) / 2)) - 1;
+  return full_mask & ~clear_mask;
+}
+
+SPLIT_MASK split_exponential(Node* node) {
   uint64_t best_mask = 0;
   NUM_TYPE best_deadspace = INFINITY;
 
@@ -21,10 +84,10 @@ SPLIT_MASK best_split_exponential(Node* node) {
       Rect mbr = NODE_GET_ITH_CHILD_MBR(node, i);
 
       if (mask >> i & 1) {
-        mbrA = rect_expand(&mbrA, &mbr);
+        mbrA = rect_union(&mbrA, &mbr);
         cA++;
       } else {
-        mbrB = rect_expand(&mbrB, &mbr);
+        mbrB = rect_union(&mbrB, &mbr);
         cB++;
       }
     }
@@ -32,8 +95,7 @@ SPLIT_MASK best_split_exponential(Node* node) {
     if (cA > M || cB > M || cA < m || cB < m)
       continue;
 
-    NUM_TYPE ds =
-        rect_unioned_area(&mbrA, &mbrB) - rect_area(&mbrA) - rect_area(&mbrB);
+    NUM_TYPE ds = rect_dead_space(&mbrA, &mbrB);
     if (ds < best_deadspace) {
       best_mask = mask;
       best_deadspace = ds;
@@ -43,25 +105,9 @@ SPLIT_MASK best_split_exponential(Node* node) {
   return best_mask;
 }
 
-SPLIT_MASK best_split_quadratic(Node* node) {
-  int total = M + 1;
-  int seed1 = -1, seed2 = -1;
-  NUM_TYPE worst_d = -1;
-
-  // Step 1: Pick the worst pair
-  for (int i = 0; i < total; i++) {
-    Rect ri = NODE_GET_ITH_CHILD_MBR(node, i);
-    for (int j = i + 1; j < total; j++) {
-      Rect rj = NODE_GET_ITH_CHILD_MBR(node, j);
-      NUM_TYPE d =
-          rect_unioned_area(&ri, &rj) - rect_area(&ri) - rect_area(&rj);
-      if (d > worst_d) {
-        worst_d = d;
-        seed1 = i;
-        seed2 = j;
-      }
-    }
-  }
+SPLIT_MASK split_quadratic(Node* node) {
+  int seed1, seed2;
+  split_pick_seeds(node, &seed1, &seed2);
 
   // Step 2: Distribute entries
   uint64_t mask = 0;
@@ -73,7 +119,7 @@ SPLIT_MASK best_split_quadratic(Node* node) {
   mask |= (1ULL << seed1); // assign to A
   // assign to B by default, so we don't set bit for seed2
 
-  for (int i = 0; i < total; i++) {
+  for (int i = 0; i < M + 1; i++) {
     if (i == seed1 || i == seed2)
       continue;
 
@@ -81,15 +127,15 @@ SPLIT_MASK best_split_quadratic(Node* node) {
     NUM_TYPE enlargeA = rect_unioned_area(&mbrA, &r) - rect_area(&mbrA);
     NUM_TYPE enlargeB = rect_unioned_area(&mbrB, &r) - rect_area(&mbrB);
 
-    if ((groupA_count + (total - i)) == m) {
+    if ((groupA_count + (M + 1 - i)) == m) {
       mask |= (1ULL << i);
-      mbrA = rect_expand(&mbrA, &r);
+      mbrA = rect_union(&mbrA, &r);
       groupA_count++;
       continue;
     }
-    if ((groupB_count + (total - i)) == m) {
+    if ((groupB_count + (M + 1 - i)) == m) {
       // default to group B
-      mbrB = rect_expand(&mbrB, &r);
+      mbrB = rect_union(&mbrB, &r);
       groupB_count++;
       continue;
     }
@@ -97,10 +143,10 @@ SPLIT_MASK best_split_quadratic(Node* node) {
     if (enlargeA < enlargeB ||
         (enlargeA == enlargeB && rect_area(&mbrA) < rect_area(&mbrB))) {
       mask |= (1ULL << i);
-      mbrA = rect_expand(&mbrA, &r);
+      mbrA = rect_union(&mbrA, &r);
       groupA_count++;
     } else {
-      mbrB = rect_expand(&mbrB, &r);
+      mbrB = rect_union(&mbrB, &r);
       groupB_count++;
     }
   }
@@ -130,7 +176,7 @@ void node_free(Node* node) {
 void node_fit_mbr(Node* node) {
   if (node->count >= 1) {
     for (int i = 0; i < node->count; i++) {
-      node->mbr = rect_expand(&node->mbr, NODE_GET_ITH_CHILD_MBR_PTR(node, i));
+      node->mbr = rect_union(&node->mbr, NODE_GET_ITH_CHILD_MBR_PTR(node, i));
     }
   }
 }
@@ -155,9 +201,11 @@ void node_split(Node* node, Node** sibling_out) {
 
   SPLIT_MASK split_mask =
 #if SPLIT_HEURISTIC == 0
-      best_split_exponential(node);
+      split_exponential(node);
 #elif SPLIT_HEURISTIC == 1
-      best_split_quadratic(node);
+      split_quadratic(node);
+#elif SPLIT_HEURISTIC == 2
+      split_greene(node);
 #endif
 
   int j = 0;
@@ -187,7 +235,7 @@ void node_split(Node* node, Node** sibling_out) {
 
 void node_insert(Node* node, Rect r, int id, bool* split) {
   if (node->kind == LEAF) {
-    node->mbr = rect_expand(&node->mbr, &r);
+    node->mbr = rect_union(&node->mbr, &r);
     node->data[node->count] = (Item){id, r};
     node->count++;
   } else {
@@ -200,9 +248,6 @@ void node_insert(Node* node, Rect r, int id, bool* split) {
 
       node->children[node->count] = sibling;
       node->count++;
-
-      printf("Split done, |A|=%i |B|=%i\n", node->children[i]->count,
-             node->children[node->count - 1]->count);
     }
 
     node_fit_mbr(node);
@@ -339,7 +384,7 @@ int rtree_depth(Node* node) {
     for (int i = 0; i < node->count; i++) {
       int d = rtree_depth(node->children[i]);
       if (d != maxd && i > 0)
-        printf("non équilibré!\n");
+        printf("Unbalanced!\n");
       maxd = maxd > d ? maxd : d;
     }
     return 1 + maxd;

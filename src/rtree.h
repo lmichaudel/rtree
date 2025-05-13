@@ -31,8 +31,10 @@ typedef struct ItemListNode {
 } ItemListNode;
 typedef ItemListNode* ItemList;
 
-SPLIT_MASK best_split_exponential(Node* node);
-SPLIT_MASK best_split_quadratic(Node* node);
+void split_pick_seeds(Node* node, int* seed1, int* seed2);
+SPLIT_MASK split_greene(Node* node);
+SPLIT_MASK split_exponential(Node* node);
+SPLIT_MASK split_quadratic(Node* node);
 
 Node* node_new(Kind kind);
 void node_free(Node* node);
