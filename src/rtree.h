@@ -1,23 +1,16 @@
-#pragma once
+#ifndef TIPE_RTREE
+#define TIPE_RTREE
 
-#include "constants.h"
-
-#include <stdbool.h>
-#include <stdint.h>
+#include "rect.h"
 
 enum { LEAF, BRANCH } typedef Kind;
 
-struct {
-  NUM_TYPE min[N];
-  NUM_TYPE max[N];
-} typedef Rect;
-
-struct {
+typedef struct Item {
   int id;
   Rect r;
-} typedef Item;
+} Item;
 
-struct Node {
+typedef struct Node {
   Kind kind;
   int count;
   Rect mbr;
@@ -26,30 +19,20 @@ struct Node {
     struct Node* children[M + 1];
     Item data[M + 1];
   };
-} typedef Node;
+} Node;
 
-struct {
+typedef struct Rtree {
   Node* root;
-} typedef Rtree;
+} Rtree;
 
-struct ItemListNode {
+typedef struct ItemListNode {
   int id;
   struct ItemListNode* next;
-} typedef ItemListNode;
+} ItemListNode;
 typedef ItemListNode* ItemList;
 
-NUM_TYPE min(NUM_TYPE, NUM_TYPE);
-NUM_TYPE max(NUM_TYPE, NUM_TYPE);
-
-NUM_TYPE rect_area(Rect* r);
-NUM_TYPE rect_perimeter(Rect* r);
-NUM_TYPE rect_unioned_area(Rect* a, Rect* b);
-Rect rect_expand(Rect* a, Rect* b);
-bool rect_intersect(Rect* a, Rect* b);
-bool rect_equal(Rect* a, Rect* b);
-
 SPLIT_MASK best_split_exponential(Node* node);
-SPLIT_MASK best_split_bad(void);
+SPLIT_MASK best_split_quadratic(Node* node);
 
 Node* node_new(Kind kind);
 void node_free(Node* node);
@@ -58,11 +41,15 @@ Rect node_ith_mbr(Node* node);
 int node_choose_best(Node* node, Rect* r);
 void node_split(Node* node, Node** sibling_out);
 void node_insert(Node* node, Rect r, int id, bool* split);
+void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink);
 
 Rtree* rtree_new(void);
 void rtree_free(Rtree* rtree);
 void rtree_insert(Rtree* rtree, Rect r, int id);
 void rtree_delete(Rtree* rtree, Rect r, int id);
+void rtree_debug(Rtree* rtree);
 ItemList rtree_search(Rtree* rtree, Rect window);
 
 void itemlist_free(ItemList list);
+
+#endif

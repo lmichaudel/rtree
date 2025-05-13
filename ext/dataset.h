@@ -10,7 +10,8 @@ typedef struct Pair {
   double b;
 } Pair;
 
-static bool load_dataset(char* filename, Pair* data, size_t dataset_size) {
+static bool load_dataset_from_file(char* filename, Pair* data,
+                                   size_t dataset_size) {
   FILE* file = fopen(filename, "rb");
   if (!file) {
     fprintf(stderr, "Error: Could not open input file.\n");
