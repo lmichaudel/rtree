@@ -1,4 +1,5 @@
 us_places
+tool/*
 
 ### VisualStudioCode template
 .vscode/*
