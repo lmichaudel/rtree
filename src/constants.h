@@ -1,14 +1,9 @@
 #ifndef TIPE_CONSTANTS
 #define TIPE_CONSTANTS
 
-#include <assert.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-
 #define N 2
 
-#define NUM_TYPE double
+#define NUM_TYPE long double
 #define NUM_TYPE_ONE 1.0
 #define NUM_TYPE_ZERO 0.0
 
@@ -17,8 +12,8 @@
 // 0 exponential; 1 quadratic; 2 Greene's split; 3 R* split
 
 // MAX VALUE FOR M IS 63!!
-#define M 10
-#define m 5
+#define M 30
+#define m 15
 
 #define WIDTH 1440
 #define HEIGHT 810

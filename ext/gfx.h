@@ -11,8 +11,7 @@ typedef struct {
   bool valid;
 } Graphics;
 
-static bool graphics_init(Graphics* ctx, const char* title, int width,
-                          int height) {
+static bool gfx_init(Graphics* ctx, const char* title, int width, int height) {
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     SDL_Log("SDL_Init Error: %s", SDL_GetError());
     ctx->valid = false;
@@ -30,6 +29,8 @@ static bool graphics_init(Graphics* ctx, const char* title, int width,
 
   ctx->renderer = SDL_CreateRenderer(
       ctx->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND);
+
   if (ctx->renderer == NULL) {
     SDL_Log("SDL_CreateRenderer Error: %s", SDL_GetError());
     SDL_DestroyWindow(ctx->window);
@@ -42,7 +43,7 @@ static bool graphics_init(Graphics* ctx, const char* title, int width,
   return true;
 }
 
-static void graphics_shutdown(Graphics* ctx) {
+static void gfx_free(Graphics* ctx) {
   if (ctx->renderer)
     SDL_DestroyRenderer(ctx->renderer);
   if (ctx->window)

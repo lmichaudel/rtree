@@ -1,8 +1,5 @@
 #include "rect.h"
 
-#include <math.h>
-#include <stdio.h>
-
 NUM_TYPE min(NUM_TYPE a, NUM_TYPE b) { return a < b ? a : b; }
 
 NUM_TYPE max(NUM_TYPE a, NUM_TYPE b) { return a < b ? b : a; }
@@ -54,14 +51,6 @@ Rect rect_inter(Rect* a, Rect* b) {
 
 NUM_TYPE rect_unioned_area(Rect* a, Rect* b) {
   Rect c = rect_union(a, b);
-  NUM_TYPE area = rect_area(&c) - rect_area(a) - rect_area(b);
-  if (area < NUM_TYPE_ZERO) {
-    printf("Error, c:{%f, %f, %f, %f} a: {%f, %f, %f, %f} b:{%f, %f, %f, %f}\n",
-           c.min[0], c.min[1], c.max[0], c.max[1], a->min[0], a->min[1],
-           a->max[0], a->max[1], b->min[0], b->min[1], b->max[0], b->max[1]);
-    printf("area(c) %f area(a) %f area(b) %f r=%f\n", rect_area(&c),
-           rect_area(a), rect_area(b), area);
-  }
   return rect_area(&c);
 }
 

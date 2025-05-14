@@ -1,58 +1,53 @@
 #include "main.h"
-#include "dataset.h"
 
-Rect search_window = {{WIDTH / 4, HEIGHT / 4}, {3 * WIDTH / 4, 3 * HEIGHT / 4}};
+int main(void) {
+  init();
+  loop();
+  shutdown();
 
-#define POINT(x, y)                                                            \
-  (Rect) {                                                                     \
-    {x, y}, { x, y }                                                           \
-  }
+  return 0;
+}
 
-#define DATASET_SIZE 1000
-Rect dataset[DATASET_SIZE];
+void init(void) {
+  read_dataset_from_file("us_places");
+  gfx_init(&gfx, "TIPE - RTree", WIDTH, HEIGHT);
 
-Rtree* rtree;
-Graphics gfx;
+  rtree = rtree_new();
+  construct_rtree();
+}
 
-bool is_rtree_constructed = true;
-bool draw_leaves = true;
-bool draw_branches = true;
-
-SDL_Color colors[5] = {
-    (SDL_Color){75, 0, 0, 255}, (SDL_Color){128, 128, 0, 255},
-    (SDL_Color){200, 0, 255, 255}, (SDL_Color){255, 100, 100, 255}};
+void shutdown(void) {
+  rtree_free(rtree);
+  gfx_free(&gfx);
+}
 
 void draw_node(Node* node, int d) {
   if (node->kind == BRANCH) {
     for (int i = 0; i < node->count; i++)
       draw_node(node->children[i], d + 1);
-    if (draw_branches)
-      graphics_draw_rect(&gfx, &node->mbr, colors[d]);
   } else {
     if (draw_leaves) {
-      graphics_draw_rect(&gfx, &node->mbr, (SDL_Color){255, 255, 255, 120});
+      graphics_draw_rect(&gfx, &node->mbr, LEAF_COLOR);
       for (int i = 0; i < node->count; i++) {
-        graphics_draw_circle(&gfx, node->data[i].r.min[0],
-                             node->data[i].r.min[1], 1,
-                             (SDL_Color){0, 255, 0, 255});
+        graphics_draw_circle(&gfx, node->data[i].mbr.min[0],
+                             node->data[i].mbr.min[1], 1, NODE_COLOR);
       }
     }
   }
 }
 
 void draw(void) {
-  graphics_clear(&gfx, (SDL_Color){30, 30, 30, 255});
+  graphics_clear(&gfx, BACKGROUND_COLOR);
 
   draw_node(rtree->root, 0);
 
-  graphics_draw_rect(&gfx, &search_window, (SDL_Color){0, 0, 255, 255});
+  graphics_draw_rect(&gfx, &search_window, FOUND_COLOR);
 
   ItemList query = rtree_search(rtree, search_window);
   ItemList current = query;
   while (current != NULL) {
-    // graphics_draw_circle(&gfx, dataset[current->id].min[0],
-    //  dataset[current->id].min[1], 1,
-    //  (SDL_Color){255, 0, 0, 255});
+    graphics_draw_circle(&gfx, dataset[current->id].mbr.min[0],
+                         dataset[current->id].mbr.min[1], 1, FOUND_COLOR);
     current = current->next;
   }
 
@@ -61,8 +56,7 @@ void draw(void) {
   graphics_present(&gfx);
 }
 
-void start_gui(void) {
-  graphics_init(&gfx, "TIPE - RTree", WIDTH, HEIGHT);
+void loop(void) {
 
   draw();
 
@@ -79,11 +73,11 @@ void start_gui(void) {
           running = false;
           break;
         case SDLK_e:
-          while (
-              !rect_intersect(&dataset[i], &(Rect){{0, 0}, {WIDTH, HEIGHT}})) {
+          while (!rect_intersect(&dataset[i].mbr,
+                                 &(Rect){{0, 0}, {WIDTH, HEIGHT}})) {
             i = (i + 1) % DATASET_SIZE;
           }
-          rtree_delete(rtree, dataset[i], i);
+          rtree_delete(rtree, dataset[i]);
           i = (i + 1) % DATASET_SIZE;
           rtree_debug(rtree);
           break;
@@ -113,47 +107,70 @@ void start_gui(void) {
   }
 }
 
-void load_dataset(void) {
-  Pair raw_data[DATASET_SIZE];
-  load_dataset_from_file("us_restaurants", &raw_data[0], DATASET_SIZE);
-  for (int i = 0; i < DATASET_SIZE; i++) {
-    Pair screen_coords = map_to_screenspace(raw_data[i]);
-    dataset[i] = POINT(screen_coords.a, screen_coords.b);
-  }
-}
-
 void construct_rtree(void) {
-  rtree->root->mbr = dataset[0];
-  for (int i = 0; i < DATASET_SIZE; i++) {
-    if (!rect_intersect(&dataset[i], &(Rect){{0, 0}, {WIDTH, HEIGHT}})) {
-      continue;
-    }
-    rtree_insert(rtree, dataset[i], i);
-  }
+  // for (int i = 0; i < DATASET_SIZE; i++) {
+  //   rtree_insert(rtree, dataset[i]);
+  // }
 
+  rtree_bulk_insert(rtree, &dataset[0], DATASET_SIZE, HILBERT);
   rtree_debug(rtree);
 }
 
 void clear_rtree(void) {
   for (int i = 0; i < DATASET_SIZE; i++) {
-    if (!rect_intersect(&dataset[i], &(Rect){{0, 0}, {WIDTH, HEIGHT}})) {
-      continue;
-    }
-    rtree_delete(rtree, dataset[i], i);
+    rtree_delete(rtree, dataset[i]);
   }
 
   rtree_debug(rtree);
 }
 
-int main(void) {
-  load_dataset();
-  rtree = rtree_new();
-  construct_rtree();
+void map_to_screenspace(NUM_TYPE lon, NUM_TYPE lat, NUM_TYPE* x, NUM_TYPE* y) {
+  double xNorm = (lon - MIN_LON) / (MAX_LON - MIN_LON);
+  double yNorm = 1.0 - (lat - MIN_LAT) / (MAX_LAT - MIN_LAT);
 
-  start_gui();
+  *x = (xNorm * WIDTH);
+  *y = (yNorm * HEIGHT);
+}
 
-  graphics_shutdown(&gfx);
-  rtree_free(rtree);
+void read_dataset_from_file(char* filename) {
+  FILE* file = fopen(filename, "rb");
+  if (file == NULL) {
+    perror("Error opening binary file");
+    return;
+  }
 
-  return 0;
+  size_t count;
+  if (fread(&count, sizeof(size_t), 1, file) != 1) {
+    fprintf(stderr, "Failed to read coordinate count.\n");
+    fclose(file);
+    return;
+  }
+
+  double* coords = malloc(2 * count * sizeof(double));
+  if (coords == NULL) {
+    fprintf(stderr, "Memory allocation failed.\n");
+    fclose(file);
+    return;
+  }
+
+  if (fread(coords, sizeof(double), 2 * count, file) != 2 * count) {
+    fprintf(stderr, "Failed to read all coordinates.\n");
+    free(coords);
+    fclose(file);
+    return;
+  }
+
+  fclose(file);
+
+  for (size_t i = 0; i < DATASET_SIZE; ++i) {
+    double lon = coords[2 * i];
+    double lat = coords[2 * i + 1];
+    NUM_TYPE x, y;
+    map_to_screenspace(lon, lat, &x, &y);
+    dataset[i] = (Item){i, POINT(x, y)};
+  }
+
+  printf("Loaded %zu entries.\n", count);
+
+  free(coords);
 }

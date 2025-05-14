@@ -2,6 +2,7 @@
 #define TIPE_RECT
 
 #include "constants.h"
+#include <stdbool.h>
 
 struct {
   NUM_TYPE min[N];

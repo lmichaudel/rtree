@@ -2,12 +2,14 @@
 #define TIPE_RTREE
 
 #include "rect.h"
+#include <stdlib.h>
 
-enum { LEAF, BRANCH } typedef Kind;
+enum Kind { LEAF, BRANCH } typedef Kind;
+enum BulkMode { X_SORT, HILBERT, STR } typedef BulkMode;
 
 typedef struct Item {
   int id;
-  Rect r;
+  Rect mbr;
 } Item;
 
 typedef struct Node {
@@ -47,8 +49,9 @@ void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink);
 
 Rtree* rtree_new(void);
 void rtree_free(Rtree* rtree);
-void rtree_insert(Rtree* rtree, Rect r, int id);
-void rtree_delete(Rtree* rtree, Rect r, int id);
+void rtree_insert(Rtree* rtree, Item i);
+void rtree_bulk_insert(Rtree* rtree, Item* data, int count, BulkMode mode);
+void rtree_delete(Rtree* rtree, Item i);
 void rtree_debug(Rtree* rtree);
 ItemList rtree_search(Rtree* rtree, Rect window);
 

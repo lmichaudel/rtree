@@ -2,13 +2,14 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define NODE_GET_ITH_CHILD_MBR(node, i)                                        \
-  (node->kind == LEAF ? node->data[i].r : node->children[i]->mbr)
+  (node->kind == LEAF ? node->data[i].mbr : node->children[i]->mbr)
 #define NODE_GET_ITH_CHILD_MBR_PTR(node, i)                                    \
-  (node->kind == LEAF ? &node->data[i].r : &node->children[i]->mbr)
+  (node->kind == LEAF ? &node->data[i].mbr : &node->children[i]->mbr)
 
 void split_pick_seeds(Node* node, int* seed1, int* seed2) {
   NUM_TYPE worst_d = -1;
@@ -30,7 +31,7 @@ int compare_item_on_axis(void* _k, const void* _a, const void* _b) {
   int k = *(int*)_k;
   Item a = *(Item*)_a;
   Item b = *(Item*)_b;
-  return a.r.min[k] - b.r.min[k];
+  return a.mbr.min[k] - b.mbr.min[k];
 }
 
 int compare_nodes_on_axis(void* _k, const void* _a, const void* _b) {
@@ -156,6 +157,10 @@ SPLIT_MASK split_quadratic(Node* node) {
 
 Node* node_new(Kind kind) {
   Node* node = malloc(sizeof(Node));
+  if (node == NULL) {
+    printf("(node_new) malloc failed.\n");
+    abort();
+  }
   node->count = 0;
   node->kind = kind;
 
@@ -278,9 +283,6 @@ void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink) {
           node_fit_mbr(node);
         }
 
-        // Do not do reinsertion for the moment, this means a node
-        // can contain k in [0, m-1] nodes without being deleted and
-        // reinserted...
         if (node->children[i]->count == 0) {
           free(node->children[i]);
           node->children[i] = node->children[node->count - 1];
@@ -297,6 +299,10 @@ void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink) {
 
 Rtree* rtree_new(void) {
   Rtree* rtree = malloc(sizeof(Rtree));
+  if (rtree == NULL) {
+    printf("(rtree_new) malloc failed.\n");
+    abort();
+  }
   rtree->root = node_new(LEAF);
 
   return rtree;
@@ -307,9 +313,9 @@ void rtree_free(Rtree* rtree) {
   free(rtree);
 }
 
-void rtree_insert(Rtree* rtree, Rect r, int id) {
+void rtree_insert(Rtree* rtree, Item i) {
   bool split = false;
-  node_insert(rtree->root, r, id, &split);
+  node_insert(rtree->root, i.mbr, i.id, &split);
 
   if (split) {
     Node* root = node_new(BRANCH);
@@ -327,9 +333,9 @@ void rtree_insert(Rtree* rtree, Rect r, int id) {
   }
 }
 
-void rtree_delete(Rtree* rtree, Rect r, int id) {
+void rtree_delete(Rtree* rtree, Item i) {
   bool shrink = false;
-  node_delete(rtree, rtree->root, r, id, &shrink);
+  node_delete(rtree, rtree->root, i.mbr, i.id, &shrink);
 
   if (shrink)
     node_fit_mbr(rtree->root);
@@ -347,8 +353,12 @@ void rtree_delete(Rtree* rtree, Rect r, int id) {
 void rtree_search_rec(Node* node, Rect* window, ItemList* list) {
   if (node->kind == LEAF) {
     for (int i = 0; i < node->count; i++) {
-      if (rect_intersect(&node->data[i].r, window)) {
+      if (rect_intersect(&node->data[i].mbr, window)) {
         ItemListNode* head = malloc(sizeof(ItemListNode));
+        if (head == NULL) {
+          printf("(rtree_search) malloc failed.\n");
+          abort();
+        }
         head->id = node->data[i].id;
         head->next = *list;
         *list = head;
@@ -372,10 +382,11 @@ ItemList rtree_search(Rtree* rtree, Rect window) {
 }
 
 void itemlist_free(ItemList list) {
-  if (list != NULL)
-    itemlist_free(list->next);
-
-  free(list);
+  if (list != NULL) {
+    ItemList next = list->next;
+    free(list);
+    itemlist_free(next);
+  }
 }
 
 int rtree_depth(Node* node) {
@@ -433,7 +444,81 @@ void rtree_debug(Rtree* rtree) {
   printf("-- RTree checkhealth --\n");
   printf("Depth %i\n", rtree_depth(rtree->root));
   printf("Entries %i\n", rtree_count(rtree->root));
-  printf("Node %i\n", rtree_node_count(rtree->root));
-  printf("Leaf %i\n", rtree_leaf_count(rtree->root));
-  printf("-----------------------\n");
+  int node_count = rtree_node_count(rtree->root);
+  int leaf_count = rtree_leaf_count(rtree->root);
+  printf("Node %i\n", node_count);
+  printf("Leaf %i\n", leaf_count);
+  printf("Memory usage %f mb.\n",
+         (node_count + leaf_count) * sizeof(Node) / (1024.0 * 1024.0));
+  printf("%f\n", 1000000 * sizeof(Item) / (1024.0 * 1024.0));
+  printf("-----------------------\n\n");
+}
+
+// BULK LOADING
+void rot(int n, int* x, int* y, int rx, int ry) {
+  if (ry == 0) {
+    if (rx == 1) {
+      *x = n - 1 - *x;
+      *y = n - 1 - *y;
+    }
+    // Swap x and y
+    int t = *x;
+    *x = *y;
+    *y = t;
+  }
+}
+
+uint64_t hilbert_index(int n, int x, int y) {
+  uint64_t d = 0;
+  for (int s = n / 2; s > 0; s /= 2) {
+    int rx = (x & s) > 0;
+    int ry = (y & s) > 0;
+    d += s * s * ((3 * rx) ^ ry);
+    rot(s, &x, &y, rx, ry);
+  }
+  return d;
+}
+
+int compare_hilbert(const void* a, const void* b) {
+  Item p1 = *(Item*)a;
+  Item p2 = *(Item*)b;
+  int n = 1 << 16;
+  uint64_t h1 = hilbert_index(n, p1.mbr.min[0], p1.mbr.min[1]);
+  uint64_t h2 = hilbert_index(n, p2.mbr.min[0], p2.mbr.min[1]);
+  return (h1 > h2) - (h1 < h2);
+}
+
+int compare_x(const void* _a, const void* _b) {
+  Item a = *(Item*)_a;
+  Item b = *(Item*)_b;
+  return a.mbr.min[0] - b.mbr.min[0];
+}
+
+void rtree_bulk_insert(Rtree* rtree, Item* data, int count, BulkMode mode) {
+  Item* data_copy = malloc(sizeof(Item) * count);
+  if (data_copy == NULL) {
+    printf("(rtree_bulk_insert) malloc failed.\n");
+    abort();
+  }
+  for (int i = 0; i < count; i++) {
+    data_copy[i] = data[i];
+  }
+
+  int (*cmp)(const void*, const void*) = compare_hilbert;
+
+  switch (mode) {
+  case X_SORT:
+    cmp = compare_x;
+    break;
+  case HILBERT:
+    cmp = compare_hilbert;
+    break;
+  default:;
+  }
+
+  qsort(data_copy, count, sizeof(Item), cmp);
+
+  for (int i = 0; i < count; i++) {
+    rtree_insert(rtree, data_copy[i]);
+  }
 }
