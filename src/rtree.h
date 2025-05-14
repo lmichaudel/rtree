@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 enum Kind { LEAF, BRANCH } typedef Kind;
-enum BulkMode { X_SORT, HILBERT, STR } typedef BulkMode;
+enum BulkMode { NAIVE, X_SORT, HILBERT, STR } typedef BulkMode;
 
 typedef struct Item {
   int id;

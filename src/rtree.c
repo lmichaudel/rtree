@@ -516,7 +516,8 @@ void rtree_bulk_insert(Rtree* rtree, Item* data, int count, BulkMode mode) {
   default:;
   }
 
-  qsort(data_copy, count, sizeof(Item), cmp);
+  if (mode != NAIVE)
+    qsort(data_copy, count, sizeof(Item), cmp);
 
   for (int i = 0; i < count; i++) {
     rtree_insert(rtree, data_copy[i]);
