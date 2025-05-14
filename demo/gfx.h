@@ -52,24 +52,22 @@ static void gfx_free(Graphics* ctx) {
   ctx->valid = false;
 }
 
-static void graphics_clear(Graphics* ctx, SDL_Color color) {
+static void gfx_clear(Graphics* ctx, SDL_Color color) {
   SDL_SetRenderDrawColor(ctx->renderer, color.r, color.g, color.b, color.a);
   SDL_RenderClear(ctx->renderer);
 }
 
-static void graphics_present(Graphics* ctx) {
-  SDL_RenderPresent(ctx->renderer);
-}
+static void gfx_present(Graphics* ctx) { SDL_RenderPresent(ctx->renderer); }
 
-static void graphics_draw_rect(Graphics* ctx, Rect* r, SDL_Color color) {
+static void gfx_draw_rect(Graphics* ctx, Rect* r, SDL_Color color) {
   SDL_SetRenderDrawColor(ctx->renderer, color.r, color.g, color.b, color.a);
   SDL_Rect rect = {r->min[0], r->min[1], r->max[0] - r->min[0],
                    r->max[1] - r->min[1]};
   SDL_RenderDrawRect(ctx->renderer, &rect);
 }
 
-static void graphics_draw_circle(Graphics* ctx, int cx, int cy, int radius,
-                                 SDL_Color color) {
+static void gfx_draw_circle(Graphics* ctx, int cx, int cy, int radius,
+                            SDL_Color color) {
   SDL_SetRenderDrawColor(ctx->renderer, color.r, color.g, color.b, color.a);
   for (int dy = -radius; dy <= radius; dy++) {
     for (int dx = -radius; dx <= radius; dx++) {

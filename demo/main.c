@@ -27,33 +27,33 @@ void draw_node(Node* node, int d) {
       draw_node(node->children[i], d + 1);
   } else {
     if (draw_leaves) {
-      graphics_draw_rect(&gfx, &node->mbr, LEAF_COLOR);
+      gfx_draw_rect(&gfx, &node->mbr, LEAF_COLOR);
       for (int i = 0; i < node->count; i++) {
-        graphics_draw_circle(&gfx, node->data[i].mbr.min[0],
-                             node->data[i].mbr.min[1], 1, NODE_COLOR);
+        gfx_draw_circle(&gfx, node->data[i].mbr.min[0],
+                        node->data[i].mbr.min[1], 1, NODE_COLOR);
       }
     }
   }
 }
 
 void draw(void) {
-  graphics_clear(&gfx, BACKGROUND_COLOR);
+  gfx_clear(&gfx, BACKGROUND_COLOR);
 
   draw_node(rtree->root, 0);
 
-  graphics_draw_rect(&gfx, &search_window, FOUND_COLOR);
+  gfx_draw_rect(&gfx, &search_window, FOUND_COLOR);
 
   ItemList query = rtree_search(rtree, search_window);
   ItemList current = query;
   while (current != NULL) {
-    graphics_draw_circle(&gfx, dataset[current->id].mbr.min[0],
-                         dataset[current->id].mbr.min[1], 1, FOUND_COLOR);
+    gfx_draw_circle(&gfx, dataset[current->id].mbr.min[0],
+                    dataset[current->id].mbr.min[1], 1, FOUND_COLOR);
     current = current->next;
   }
 
   itemlist_free(query);
 
-  graphics_present(&gfx);
+  gfx_present(&gfx);
 }
 
 void loop(void) {
@@ -108,10 +108,6 @@ void loop(void) {
 }
 
 void construct_rtree(void) {
-  // for (int i = 0; i < DATASET_SIZE; i++) {
-  //   rtree_insert(rtree, dataset[i]);
-  // }
-
   rtree_bulk_insert(rtree, &dataset[0], DATASET_SIZE, HILBERT);
   rtree_debug(rtree);
 }
