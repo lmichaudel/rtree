@@ -14,8 +14,11 @@ rtree: rect src/rtree.c src/rtree.h src/constants.h
 cdataset: tool/cdataset.cpp tool/json.hpp
 	g++ tool/cdataset.cpp -o .build/cdataset.a $(FLAGS) -Itool/
 
-main: rtree demo/main.c demo/main.h demo/gfx.h src/constants.h
+main: rtree demo/main.c demo/main.h demo/gfx.h demo/stb_image_write.h src/constants.h
 	gcc demo/main.c .build/rtree.o .build/rect.o -o .build/main.a $(FLAGS) $(SDL_FLAGS) $(DEBUG_FLAGS)
+
+benchmark: rtree benchmark/main.c benchmark/main.h
+	gcc benchmark/main.c $(FLAGS)
 
 all: main cdataset
 clean:

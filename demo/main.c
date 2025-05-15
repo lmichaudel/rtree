@@ -2,6 +2,9 @@
 
 int main(void) {
   init();
+
+  draw();
+
   loop();
   shutdown();
 
@@ -96,6 +99,8 @@ void loop(void) {
         case SDLK_z:
           draw_branches = !draw_branches;
           break;
+        case SDLK_p:
+          save_screenshot(&gfx, "capture/screenshot.png");
         default:
           break;
         }
@@ -103,7 +108,7 @@ void loop(void) {
       }
     }
 
-    SDL_Delay(50);
+    SDL_Delay(20);
   }
 }
 

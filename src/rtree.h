@@ -41,9 +41,10 @@ SPLIT_MASK split_quadratic(Node* node);
 Node* node_new(Kind kind);
 void node_free(Node* node);
 void node_fit_mbr(Node* node);
-Rect node_ith_mbr(Node* node);
 int node_choose_best(Node* node, Rect* r);
+int node_choose_best_star(Node* node, Rect* r);
 void node_split(Node* node, Node** sibling_out);
+void node_split_star(Node* node, Rect* r);
 void node_insert(Node* node, Rect r, int id, bool* split);
 void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink);
 
