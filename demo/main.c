@@ -2,9 +2,7 @@
 
 int main(void) {
   init();
-
   draw();
-
   loop();
   shutdown();
 
@@ -16,7 +14,9 @@ void init(void) {
   gfx_init(&gfx, "TIPE - RTree", WIDTH, HEIGHT);
 
   rtree = rtree_new();
+  qtree = quadtree_new((Rect){{0, 0}, {WIDTH, HEIGHT}});
   construct_rtree();
+  construct_qtree();
 }
 
 void shutdown(void) {
@@ -39,14 +39,40 @@ void draw_node(Node* node, int d) {
   }
 }
 
+void draw_qtree(Quadtree* qtree) {
+  gfx_draw_rect(&gfx, &qtree->mbr, LEAF_COLOR);
+  if (qtree->NW != NULL) {
+    draw_qtree(qtree->NW);
+    draw_qtree(qtree->NE);
+    draw_qtree(qtree->SW);
+    draw_qtree(qtree->SE);
+  }
+}
+
 void draw(void) {
   gfx_clear(&gfx, BACKGROUND_COLOR);
+  draw_qtree(qtree);
 
-  draw_node(rtree->root, 0);
+  // draw_node(rtree->root, 0);
 
   gfx_draw_rect(&gfx, &search_window, FOUND_COLOR);
 
-  ItemList query = rtree_search(rtree, search_window);
+  for (int i = 0; i < DATASET_SIZE; i++) {
+    gfx_draw_circle(&gfx, dataset[i].mbr.min[0], dataset[i].mbr.min[1], 1,
+                    NODE_COLOR);
+  }
+
+  // ItemList query = rtree_search(rtree, search_window);
+  // ItemList current = query;
+  // while (current != NULL) {
+  //   gfx_draw_circle(&gfx, dataset[current->id].mbr.min[0],
+  //                   dataset[current->id].mbr.min[1], 1, FOUND_COLOR);
+  //   current = current->next;
+  // }
+  //
+  // itemlist_free(query);
+
+  ItemList query = quadtree_search(qtree, search_window);
   ItemList current = query;
   while (current != NULL) {
     gfx_draw_circle(&gfx, dataset[current->id].mbr.min[0],
@@ -112,6 +138,11 @@ void loop(void) {
   }
 }
 
+void construct_qtree(void) {
+  for (int i = 0; i < DATASET_SIZE; i++) {
+    quadtree_insert(qtree, dataset[i]);
+  }
+}
 void construct_rtree(void) {
   rtree_bulk_insert(rtree, &dataset[0], DATASET_SIZE, HILBERT);
   rtree_debug(rtree);

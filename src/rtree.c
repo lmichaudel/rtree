@@ -257,6 +257,7 @@ void node_insert(Node* node, Rect r, int id, bool* split) {
 
     node_fit_mbr(node);
   }
+
   *split = node->count > M;
 }
 
@@ -350,7 +351,7 @@ void rtree_delete(Rtree* rtree, Item i) {
   }
 }
 
-void rtree_search_rec(Node* node, Rect* window, ItemList* list) {
+void node_search(Node* node, Rect* window, ItemList* list) {
   if (node->kind == LEAF) {
     for (int i = 0; i < node->count; i++) {
       if (rect_intersect(&node->data[i].mbr, window)) {
@@ -367,7 +368,7 @@ void rtree_search_rec(Node* node, Rect* window, ItemList* list) {
   } else {
     for (int i = 0; i < node->count; i++) {
       if (rect_intersect(&node->children[i]->mbr, window)) {
-        rtree_search_rec(node->children[i], window, list);
+        node_search(node->children[i], window, list);
       }
     }
   }
@@ -376,17 +377,9 @@ void rtree_search_rec(Node* node, Rect* window, ItemList* list) {
 ItemList rtree_search(Rtree* rtree, Rect window) {
   ItemList list = NULL;
 
-  rtree_search_rec(rtree->root, &window, &list);
+  node_search(rtree->root, &window, &list);
 
   return list;
-}
-
-void itemlist_free(ItemList list) {
-  if (list != NULL) {
-    ItemList next = list->next;
-    free(list);
-    itemlist_free(next);
-  }
 }
 
 int rtree_depth(Node* node) {

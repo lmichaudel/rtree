@@ -23,5 +23,6 @@ Rect rect_inter(Rect* a, Rect* b);
 bool rect_intersect(Rect* a, Rect* b);
 bool rect_equal(Rect* a, Rect* b);
 bool rect_is_initialized(Rect* r);
+void print_rect(Rect* r);
 
 #endif

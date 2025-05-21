@@ -1,6 +1,7 @@
 us_places
 tool/*
 capture/
+result/
 
 ### VisualStudioCode template
 .vscode/*

@@ -1,11 +1,12 @@
 #ifndef TIPE_MAIN
 #define TIPE_MAIN
 
+#include "competitors/quadtree.h"
 #include "constants.h"
 #include "gfx.h"
 #include "rtree.h"
 
-#define DATASET_SIZE 1000000
+#define DATASET_SIZE 10000
 
 #define POINT(x, y)                                                            \
   (Rect) {                                                                     \
@@ -23,6 +24,7 @@ Rect search_window = {{800, 500}, {1200, 750}};
 Item dataset[DATASET_SIZE];
 
 Rtree* rtree;
+Quadtree* qtree;
 Graphics gfx;
 
 bool is_rtree_constructed = true;
@@ -40,6 +42,8 @@ void draw_node(Node* node, int d);
 
 void construct_rtree(void);
 void clear_rtree(void);
+
+void construct_qtree(void);
 
 void map_to_screenspace(NUM_TYPE lon, NUM_TYPE lat, NUM_TYPE* x, NUM_TYPE* y);
 void read_dataset_from_file(char* filename);

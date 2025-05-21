@@ -1,16 +1,13 @@
 #ifndef TIPE_RTREE
 #define TIPE_RTREE
 
+#include "item.h"
 #include "rect.h"
+
 #include <stdlib.h>
 
 enum Kind { LEAF, BRANCH } typedef Kind;
 enum BulkMode { NAIVE, X_SORT, HILBERT, STR } typedef BulkMode;
-
-typedef struct Item {
-  int id;
-  Rect mbr;
-} Item;
 
 typedef struct Node {
   Kind kind;
@@ -27,12 +24,6 @@ typedef struct Rtree {
   Node* root;
 } Rtree;
 
-typedef struct ItemListNode {
-  int id;
-  struct ItemListNode* next;
-} ItemListNode;
-typedef ItemListNode* ItemList;
-
 void split_pick_seeds(Node* node, int* seed1, int* seed2);
 SPLIT_MASK split_greene(Node* node);
 SPLIT_MASK split_exponential(Node* node);
@@ -45,6 +36,7 @@ int node_choose_best(Node* node, Rect* r);
 int node_choose_best_star(Node* node, Rect* r);
 void node_split(Node* node, Node** sibling_out);
 void node_split_star(Node* node, Rect* r);
+void node_search(Node* node, Rect* window, ItemList* list);
 void node_insert(Node* node, Rect r, int id, bool* split);
 void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink);
 
@@ -55,7 +47,5 @@ void rtree_bulk_insert(Rtree* rtree, Item* data, int count, BulkMode mode);
 void rtree_delete(Rtree* rtree, Item i);
 void rtree_debug(Rtree* rtree);
 ItemList rtree_search(Rtree* rtree, Rect window);
-
-void itemlist_free(ItemList list);
 
 #endif

@@ -1,5 +1,7 @@
 #include "rect.h"
 
+#include <stdio.h>
+
 NUM_TYPE min(NUM_TYPE a, NUM_TYPE b) { return a < b ? a : b; }
 
 NUM_TYPE max(NUM_TYPE a, NUM_TYPE b) { return a < b ? b : a; }
@@ -81,4 +83,7 @@ bool rect_equal(Rect* a, Rect* b) {
   return true;
 }
 
+void print_rect(Rect* r) {
+  printf("%f %f %f %f", r->min[0], r->min[1], r->max[0], r->max[1]);
+}
 bool rect_is_initialized(Rect* r) { return r->min[0] >= 0; }
