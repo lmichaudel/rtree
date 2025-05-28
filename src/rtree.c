@@ -50,10 +50,10 @@ SPLIT_MASK split_greene(Node* node) {
   NUM_TYPE greatest_separation = -1.0f;
 
   for (int k = 0; k < N; k++) {
-    NUM_TYPE separation = NODE_GET_ITH_CHILD_MBR(node, seed1).max[k] -
-                          NODE_GET_ITH_CHILD_MBR(node, seed1).min[k];
+    NUM_TYPE separation = fabsl(NODE_GET_ITH_CHILD_MBR(node, seed1).min[k] -
+                                NODE_GET_ITH_CHILD_MBR(node, seed2).min[k]);
     NUM_TYPE relative_separation =
-        fabs(separation / (node->mbr.max[k] - node->mbr.min[k]));
+        fabsl(separation / (node->mbr.max[k] - node->mbr.min[k]));
 
     if (relative_separation > greatest_separation) {
       greatest_separation = relative_separation;
@@ -261,7 +261,7 @@ void node_insert(Node* node, Rect r, int id, bool* split) {
   *split = node->count > M;
 }
 
-void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink) {
+bool node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink) {
   if (node->kind == LEAF) {
     for (int i = 0; i < node->count; i++) {
       if (node->data[i].id == id) {
@@ -271,12 +271,15 @@ void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink) {
         node_fit_mbr(node);
 
         *shrink = !rect_equal(&old_mbr, &node->mbr);
+        return true;
       }
     }
+    return false;
   } else {
+    bool v = false;
     for (int i = 0; i < node->count; i++) {
       if (rect_intersect(&node->children[i]->mbr, &r)) {
-        node_delete(rtree, node->children[i], r, id, shrink);
+        bool t = node_delete(rtree, node->children[i], r, id, shrink);
 
         Rect old_mbr = node->mbr;
 
@@ -293,8 +296,11 @@ void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink) {
         }
 
         *shrink = !rect_equal(&old_mbr, &node->mbr);
+
+        v = v || t;
       }
     }
+    return v;
   }
 }
 
@@ -334,9 +340,17 @@ void rtree_insert(Rtree* rtree, Item i) {
   }
 }
 
-void rtree_delete(Rtree* rtree, Item i) {
+bool rtree_delete(Rtree* rtree, Item i) {
   bool shrink = false;
-  node_delete(rtree, rtree->root, i.mbr, i.id, &shrink);
+  Rect r = i.mbr;
+
+  if (N == 2) {
+    r.min[0] -= 1;
+    r.min[1] -= 1;
+    r.max[0] += 1;
+    r.max[1] += 1;
+  }
+  bool t = node_delete(rtree, rtree->root, i.mbr, i.id, &shrink);
 
   if (shrink)
     node_fit_mbr(rtree->root);
@@ -349,6 +363,8 @@ void rtree_delete(Rtree* rtree, Item i) {
     free(rtree->root);
     rtree->root = node_new(LEAF);
   }
+
+  return t;
 }
 
 void node_search(Node* node, Rect* window, ItemList* list) {

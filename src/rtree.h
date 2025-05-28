@@ -38,13 +38,13 @@ void node_split(Node* node, Node** sibling_out);
 void node_split_star(Node* node, Rect* r);
 void node_search(Node* node, Rect* window, ItemList* list);
 void node_insert(Node* node, Rect r, int id, bool* split);
-void node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink);
+bool node_delete(Rtree* rtree, Node* node, Rect r, int id, bool* shrink);
 
 Rtree* rtree_new(void);
 void rtree_free(Rtree* rtree);
 void rtree_insert(Rtree* rtree, Item i);
 void rtree_bulk_insert(Rtree* rtree, Item* data, int count, BulkMode mode);
-void rtree_delete(Rtree* rtree, Item i);
+bool rtree_delete(Rtree* rtree, Item i);
 void rtree_debug(Rtree* rtree);
 ItemList rtree_search(Rtree* rtree, Rect window);
 

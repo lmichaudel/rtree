@@ -10,7 +10,8 @@ Item dataset[DATASET_SIZE];
 
 void benchmark_construction(int steps) {
   int step = DATASET_SIZE / steps;
-  clock_t times[step];
+  clock_t time_rtree[steps];
+  clock_t time_qtree[steps];
 
   for (int i = 0; i < steps; i++) {
     clock_t t1 = clock();
@@ -19,8 +20,21 @@ void benchmark_construction(int steps) {
     rtree_bulk_insert(rtree, dataset, step * i, HILBERT);
     clock_t t2 = clock();
 
-    times[i] = t2 - t1;
+    time_rtree[i] = t2 - t1;
     rtree_free(rtree);
+  }
+
+  for (int i = 0; i < steps; i++) {
+    clock_t t1 = clock();
+
+    Quadtree* qtree = quadtree_new((Rect){{0, 0}, {WIDTH, HEIGHT}});
+    for (int j = 0; j < i * step; j++) {
+      quadtree_insert(qtree, dataset[j]);
+    }
+    clock_t t2 = clock();
+
+    time_qtree[i] = t2 - t1;
+    quadtree_free(qtree);
   }
 
   FILE* fp = fopen("result/benchmark_construction.csv", "w");
@@ -28,19 +42,21 @@ void benchmark_construction(int steps) {
     perror("Could not open file for writing");
     return;
   }
-  fprintf(fp, "N;BUILDTIME\n");
+  fprintf(fp, "N;QUADTREE;RTREE\n");
   for (int i = 0; i < steps; i++) {
-    fprintf(fp, "%i;%llu\n", i * step, (long long)times[i]);
+    fprintf(fp, "%i;%llu;%llu\n", i * step, (long long)time_qtree[i],
+            (long long)time_rtree[i]);
   }
 }
 
 void benchmark_search(int steps, Rect window) {
 
   int step = DATASET_SIZE / steps;
-  clock_t times_rtree[step];
-  clock_t times_naive[step];
+  clock_t times_rtree[steps];
+  clock_t times_qtree[steps];
+  clock_t times_naive[steps];
 
-  for (int i = 0; i < steps; i++) {
+  for (volatile int i = 0; i < steps; i++) {
     Rtree* rtree = rtree_new();
     rtree_bulk_insert(rtree, dataset, i * step, HILBERT);
 
@@ -53,10 +69,26 @@ void benchmark_search(int steps, Rect window) {
     itemlist_free(list);
   }
 
-  for (int i = 0; i < steps; i++) {
+  for (volatile int i = 0; i < steps; i++) {
+    Quadtree* qtree = quadtree_new((Rect){{0, 0}, {WIDTH, HEIGHT}});
+
+    for (volatile int j = 0; j < i * step; j++) {
+      quadtree_insert(qtree, dataset[j]);
+    }
+
+    clock_t t1 = clock();
+    ItemList list = quadtree_search(qtree, window);
+    clock_t t2 = clock();
+
+    times_qtree[i] = t2 - t1;
+    quadtree_free(qtree);
+    itemlist_free(list);
+  }
+
+  for (volatile int i = 0; i < steps; i++) {
     clock_t t1 = clock();
     ItemList l = NULL;
-    for (int j = 0; j < i * step; j++) {
+    for (volatile int j = 0; j < i * step; j++) {
       if (rect_intersect(&dataset[j].mbr, &window)) {
         ItemList node = malloc(sizeof(ItemListNode));
         node->next = l;
@@ -76,12 +108,12 @@ void benchmark_search(int steps, Rect window) {
     return;
   }
 
-  fprintf(fp, "N;NAIVE;RTREE\n");
+  fprintf(fp, "N;NAIVE;QTREE;RTREE\n");
   for (int i = 0; i < steps; i++) {
     double naive_time = times_naive[i];
     double rtree_time = times_rtree[i];
-    fprintf(fp, "%i;%llu;%llu\n", i * step, (long long)naive_time,
-            (long long)rtree_time);
+    fprintf(fp, "%i;%llu;%llu;%llu\n", i * step, (long long)naive_time,
+            (long long)times_qtree[i], (long long)rtree_time);
   }
 }
 
@@ -158,7 +190,7 @@ void benchmark_n_squared(int steps) {
   }
   printf("finished qtree\n");
 
-  for (volatile int i = 0; i < min(steps, 20); i++) {
+  for (volatile int i = 0; i < min(steps, 10); i++) {
     clock_t t1 = clock();
 
     volatile double best = INFINITY;
@@ -173,6 +205,7 @@ void benchmark_n_squared(int steps) {
     }
 
     clock_t t2 = clock();
+    printf("b\n");
     times_naive[i] = t2 - t1;
   }
   printf("finished naive\n");
@@ -200,8 +233,9 @@ int main(void) {
   Rect search_window = {{800, 500}, {900, 750}};
 
   // benchmark_construction(20);
-  // benchmark_search(20, search_window);
-  benchmark_n_squared(20);
+  benchmark_search(20, search_window);
+  //  benchmark_n_squared(20);
+
   return 0;
 }
 

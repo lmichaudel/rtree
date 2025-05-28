@@ -6,7 +6,7 @@
 #include "gfx.h"
 #include "rtree.h"
 
-#define DATASET_SIZE 10000
+#define DATASET_SIZE 50000
 
 #define POINT(x, y)                                                            \
   (Rect) {                                                                     \
@@ -15,9 +15,9 @@
 
 const SDL_Color BACKGROUND_COLOR = {255, 255, 255, 255};
 const SDL_Color QUERY_COLOR = {255, 0, 255, 122};
-const SDL_Color NODE_COLOR = {0, 0, 0, 122};
+const SDL_Color NODE_COLOR = {0, 0, 100, 100};
 const SDL_Color FOUND_COLOR = {255, 0, 0, 255};
-const SDL_Color LEAF_COLOR = {0, 0, 255, 122};
+const SDL_Color LEAF_COLOR = {0, 0, 0, 100};
 
 Rect search_window = {{800, 500}, {1200, 750}};
 
@@ -38,7 +38,8 @@ void draw(void);
 void shutdown(void);
 void loop(void);
 
-void draw_node(Node* node, int d);
+void draw_rtree(Node* node, int d);
+void draw_qtree(Quadtree* qtree);
 
 void construct_rtree(void);
 void clear_rtree(void);

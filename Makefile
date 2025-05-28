@@ -20,6 +20,9 @@ cdataset: tool/cdataset.cpp tool/json.hpp
 demo: rtree quadtree demo/main.c demo/main.h demo/gfx.h demo/stb_image_write.h src/constants.h
 	gcc demo/main.c .build/quadtree.o .build/rtree.o .build/rect.o -o .build/main.a -Idemo/ $(FLAGS) $(SDL_FLAGS)
 
+dynamic-vehicles: rtree demo/dynamic_vehicles.c demo/gfx.h demo/stb_image_write.h
+	gcc demo/dynamic_vehicles.c .build/rtree.o .build/rect.o -o .build/dynamic.a -Idemo/ $(FLAGS) $(SDL_FLAGS)
+
 benchmark: rtree quadtree benchmark/main.c benchmark/main.h
 	gcc benchmark/main.c .build/rtree.o .build/quadtree.o .build/rect.o -o .build/benchmark.a -Ibenchmark/ $(FLAGS)
 

@@ -9,11 +9,11 @@
 
 #define SPLIT_MASK uint64_t
 #define SPLIT_HEURISTIC 2
-// 0 exponential; 1 quadratic; 2 Greene's split; 3 R* split
+// 0 exponential; 1 quadratic; 2 Greene's split
 
 // MAX VALUE FOR M IS 63!!
-#define M 30
-#define m 15
+#define M 50
+#define m 20
 
 #define WIDTH 1440
 #define HEIGHT 810

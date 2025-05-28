@@ -84,6 +84,6 @@ bool rect_equal(Rect* a, Rect* b) {
 }
 
 void print_rect(Rect* r) {
-  printf("%f %f %f %f", r->min[0], r->min[1], r->max[0], r->max[1]);
+  printf("%Lf %Lf %Lf %Lf", r->min[0], r->min[1], r->max[0], r->max[1]);
 }
 bool rect_is_initialized(Rect* r) { return r->min[0] >= 0; }

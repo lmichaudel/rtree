@@ -52,7 +52,7 @@ void quadtree_insert(Quadtree* root, Item i) {
   // i had to limit the depth because there are some duplicates
   // in the dataset and it crashed the construction
   int j = 0;
-  while (true && j < 100) {
+  while (true && j < 200) {
     j++;
 
     if (is_leaf(current)) {
@@ -81,7 +81,6 @@ void quadtree_insert(Quadtree* root, Item i) {
     }
 
     Quadtree* next = get_correct_quadrant(current, i);
-    assert(next != current);
     current = next;
   }
 }
